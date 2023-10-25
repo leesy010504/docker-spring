@@ -1,0 +1,13 @@
+sudo: required
+
+language: generic
+
+services:
+  - docker
+
+before_install:
+  - echo "start creating an image with dockerfile"
+  - docker build -t docker-spring -f Dockerfile .
+
+script:
+  - docker run -e CI=true docker-spring npm run test -- --coverage
