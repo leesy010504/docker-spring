@@ -1,15 +1,15 @@
 version: "3"
 services:
   db:
-    container_name: h2
-    image: oscarfonts/h2:latest
+    container_name: mysql
+    image: mysql:8.0.33
     ports:
-      - 1521:1521
-      - 8081:81
+      - "3306:3306"
     environment:
-      H2_OPTIONS: -ifNotExists
+      MYSQL_ROOT_PASSWORD: 1234
+      TZ: Asia/Seoul
     volumes:
-      - ./h2/:/opt/h2-data
+      - ./mysql:/var/lib/mysql
     restart: always
   app:
     build:
@@ -17,10 +17,10 @@ services:
       dockerfile: Dockerfile
     container_name: board_app
     ports:
-      - 8080:8080
+      - "8884:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:h2:tcp://h2:1521/demo
-      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/mysql?serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 1234
     depends_on:
       - db
