@@ -25,14 +25,14 @@ pipeline {
                 args: [99d]
                 volumeMounts:
                   - name: docker-socket
-                    mountPath: /var/run
+                    mountPath: /var/run/docker.sock
               - name: docker-daemon
                 image: docker:dind
                 securityContext:
                   privileged: true
                 volumeMounts:
                   - name: docker-socket
-                    mountPath: /var/run
+                    mountPath: /var/run/docker.sock
               - name: kubectl
                 image: bitnami/kubectl:1.26.0
                 command: [sleep]
