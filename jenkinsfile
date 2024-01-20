@@ -1,50 +1,84 @@
 pipeline {
-    agent {
-        kubernetes {
-            // Pod 템플릿 정의
-            yaml """
-            apiVersion: v1
-            kind: Pod
-            spec:
-              containers:
+  agent any
+  tools {
+    gradle 'my_gradle'
+  }
+
+  stages {
+    stage('Docker pod deploy') {
+      steps {
+        podTemplate(yaml: '''
+          apiVersion: v1
+          kind: Pod
+          spec:
+            serviceAccountName: jenkins-admin
+            volumes:
+              - name: docker-socket
+                emptyDir: {}
+            containers:
               - name: docker
+                image: docker
+                readinessProbe:
+                  exec:
+                    command: [sh, -c, "ls -S /var/run/docker.sock"]
+                command: [sleep]
+                args: [99d]
+                volumeMounts:
+                  - name: docker-socket
+                    mountPath: /var/run
+              - name: docker-daemon
                 image: docker:dind
                 securityContext:
                   privileged: true
                 volumeMounts:
-                - name: docker-sock
-                  mountPath: /var/run/docker.sock
-              volumes:
-              - name: docker-sock
-                hostPath:
-                  path: /var/run/docker.sock
-            """
-        }
-    }
-    stages {
-        stage('Clone repository') {
-            steps {
-                checkout scm
-            }
-        }
-        stage('Build image') {
-            steps {
-                script {
-                    // Docker 빌드 명령어
-                    app = docker.build("leesy010504/docker-spring")
+                  - name: docker-socket
+                    mountPath: /var/run
+              - name: kubectl
+                image: bitnami/kubectl:1.26.0
+                command: [sleep]
+                args: [99d]
+              - name: gradle
+                image: gradle:7.5.1-jdk11
+                command: [sleep]
+                args: [99d]
+        ''') {
+          node(POD_LABEL) {
+            container('docker') {
+              script {
+                stage('Clone Repository') {
+                  checkout scm
                 }
+              }
             }
-        }
-        stage('Push image') {
-            steps {
-                script {
-                    // Docker 레지스트리에 푸시
-                    docker.withRegistry('https://registry.hub.docker.com/', 'dockerhub') {
-                        app.push("${env.BUILD_NUMBER}")
-                        app.push("latest")
-                    }
+            container('gradle'){
+              script{
+                stage('Gradle Build') {
+                  sh 'gradle build'
                 }
+              }        
+            } 
+            stage('Build image') {
+              steps {
+                script {
+                  // Docker 빌드 명령어
+                  app = docker.build("leesy010504/docker-spring")
+                }
+              }
             }
+            stage('Push image') {
+              steps {
+                script {
+                  // Docker 레지스트리에 푸시
+                  docker.withRegistry('https://registry.hub.docker.com/', 'dockerhub') {
+                    app.push("${env.BUILD_NUMBER}")
+                    app.push("latest")
+                  }
+                }
+              }
+            }
+          }
         }
+      }
     }
+  }
 }
